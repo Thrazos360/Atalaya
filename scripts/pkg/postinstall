@@ -1,0 +1,10 @@
+#!/bin/sh
+# Tras copiar los archivos, deja el vigía en guardia para quien instaló el paquete.
+# El instalador corre como root, así que el servicio se instala en nombre de esa persona.
+USUARIO=$(stat -f%Su /dev/console)
+if [ -z "$USUARIO" ] || [ "$USUARIO" = "root" ]; then
+  exit 0
+fi
+ID=$(id -u "$USUARIO")
+launchctl asuser "$ID" sudo -u "$USUARIO" /usr/local/bin/atalaya service install || true
+exit 0

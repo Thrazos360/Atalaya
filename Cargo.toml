@@ -1,0 +1,12 @@
+[workspace]
+members = ["crates/*", "app/src-tauri"]
+resolver = "3"
+
+# La versión de Atalaya se define solo aquí; los crates, la app y el instalador la heredan.
+[workspace.package]
+version = "0.42.0"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true

@@ -1,0 +1,50 @@
+//! Núcleo de Atalaya: registro de proyectos e inspección en vivo de cada repo.
+
+pub mod admin;
+pub mod agents;
+pub mod ai;
+pub mod activity;
+pub mod approvals;
+pub mod attachments;
+pub mod automations;
+pub mod backup;
+pub mod checks;
+pub mod clis;
+pub mod commands;
+pub mod compare;
+pub mod claude;
+pub mod connections;
+pub mod context;
+pub mod conversations;
+pub mod decisions;
+pub mod delegate;
+pub mod discover;
+pub mod firebase;
+pub mod flags;
+pub mod github;
+pub mod inspect;
+pub mod leaks;
+pub mod local;
+pub mod local_sync;
+pub mod mail;
+pub mod mcp_bridge;
+pub mod mcp_servers;
+pub mod memories;
+pub mod orchestrator;
+pub mod providers;
+pub mod quota;
+pub mod radar;
+pub mod registry;
+pub mod round;
+pub mod secrets;
+pub mod skills;
+pub mod status;
+pub mod supabase;
+pub mod telegram;
+#[cfg(test)]
+pub(crate) mod testutil;
+pub mod worker;
+
+pub use context::{project_context, recent_commits};
+pub use inspect::{Inspection, inspect};
+pub use registry::{Check, Improvement, Project, Registry};

@@ -1,0 +1,1344 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Atalaya · la torre de vigía de tus proyectos</title>
+    <meta
+      name="description"
+      content="App de código abierto para macOS que vigila tus sitios, despliegues, bases y repos, te avisa cuando algo falla y pone a varias IA a trabajar en las mejoras, siempre con tu visto bueno."
+    />
+    <meta property="og:title" content="Atalaya · la torre de vigía de tus proyectos" />
+    <meta
+      property="og:description"
+      content="Vigila tus proyectos de software y pone a varias IA a trabajar en equipo. Código abierto, corre en tu Mac."
+    />
+    <meta property="og:image" content="/img/vigia.jpg" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#0c0c0e" />
+    <link rel="icon" type="image/png" href="/img/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* La misma sala de guardia que la app: superficies planas y líneas de 1px.
+         La única luz es la del faro. */
+      :root {
+        --noche: #0c0c0e;
+        --muralla: #141417;
+        --piedra: #1c1c20;
+        --junta: #27272a;
+        --cal: #e4e4e7;
+        --ceniza: #a1a1aa;
+        --polvo: #71717a;
+        --almenara: #d99a3e;
+        --liquen: #5e9e78;
+        --brasa: #d9534f;
+
+        --display: "Big Shoulders Display", "Arial Narrow", sans-serif;
+        --sans: "Geist", -apple-system, "Helvetica Neue", sans-serif;
+        --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+
+        --ancho: 1180px;
+        --margen: clamp(16px, 4vw, 40px);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        background: var(--noche);
+        color: var(--cal);
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        font-family: var(--sans);
+        font-size: 17px;
+        line-height: 1.6;
+        background: var(--noche);
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      img {
+        max-width: 100%;
+        display: block;
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--almenara);
+        outline-offset: 3px;
+      }
+
+      .marco {
+        width: 100%;
+        max-width: var(--ancho);
+        margin: 0 auto;
+        padding: 0 var(--margen);
+      }
+
+      /* Etiquetas: la voz de la consola. */
+      .rotulo {
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--polvo);
+      }
+
+      /* ---------------------------------------------------------- barra */
+      .barra {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: rgba(12, 12, 14, 0.92);
+        border-bottom: 1px solid var(--junta);
+        backdrop-filter: blur(8px);
+      }
+
+      .barra .marco {
+        display: flex;
+        align-items: center;
+        gap: 28px;
+        height: 60px;
+      }
+
+      .marca {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+        font-size: 18px;
+        text-decoration: none;
+        letter-spacing: -0.01em;
+      }
+
+      .marca img {
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+      }
+
+      .barra nav {
+        display: flex;
+        gap: 24px;
+        margin-left: auto;
+      }
+
+      .barra nav a {
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ceniza);
+        text-decoration: none;
+      }
+
+      .barra nav a:hover {
+        color: var(--cal);
+      }
+
+      .boton {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 18px;
+        font-family: var(--mono);
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        text-decoration: none;
+        color: var(--cal);
+        background: transparent;
+        border: 1px solid var(--junta);
+        border-radius: 4px;
+        cursor: pointer;
+        transition:
+          border-color 0.2s,
+          background 0.2s;
+      }
+
+      .boton:hover {
+        border-color: var(--ceniza);
+      }
+
+      .boton.principal {
+        color: var(--noche);
+        background: var(--almenara);
+        border-color: var(--almenara);
+      }
+
+      .boton.principal:hover {
+        background: #e6ab55;
+      }
+
+      .boton svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      .barra .boton {
+        padding: 8px 14px;
+        font-size: 12px;
+      }
+
+      /* ---------------------------------------------------------- portada */
+      .portada {
+        padding: clamp(48px, 9vw, 110px) 0 clamp(56px, 8vw, 96px);
+        border-bottom: 1px solid var(--junta);
+      }
+
+      .portada .marco {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+        gap: clamp(32px, 5vw, 72px);
+        align-items: center;
+      }
+
+      .portada h1 {
+        margin: 18px 0 24px;
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: clamp(56px, 8.4vw, 112px);
+        line-height: 0.95;
+        letter-spacing: -0.01em;
+        text-transform: uppercase;
+      }
+
+      .portada h1 em {
+        font-style: normal;
+        color: var(--almenara);
+      }
+
+      .bajada {
+        max-width: 34em;
+        margin: 0 0 32px;
+        color: var(--ceniza);
+        font-size: 18px;
+      }
+
+      .bajada strong {
+        color: var(--cal);
+        font-weight: 500;
+      }
+
+      .acciones {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      /* La sala de guardia: el faro barre la lista y cada proyecto que toca queda revisado. */
+      .guardia {
+        position: relative;
+        border: 1px solid var(--junta);
+        border-radius: 8px;
+        background: var(--muralla);
+        overflow: hidden;
+        isolation: isolate;
+      }
+
+      .guardia-cabeza {
+        display: flex;
+        justify-content: space-between;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--junta);
+      }
+
+      .guardia-cabeza .vivo {
+        color: var(--liquen);
+      }
+
+      .guardia-cabeza .vivo::before {
+        content: "";
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        margin-right: 8px;
+        border-radius: 50%;
+        background: var(--liquen);
+        vertical-align: 1px;
+      }
+
+      .torre {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        z-index: 2;
+        width: 46px;
+        transform: translateY(-35%);
+      }
+
+      .haz {
+        position: absolute;
+        z-index: 0;
+        left: 39px;
+        top: calc(50% - 6px);
+        width: 900px;
+        height: 900px;
+        margin: -450px 0 0 0;
+        transform-origin: 0 50%;
+        background: conic-gradient(
+          from 90deg at 0 50%,
+          transparent 0deg,
+          rgba(217, 154, 62, 0) 0deg,
+          rgba(217, 154, 62, 0.2) 4deg,
+          rgba(217, 154, 62, 0.07) 9deg,
+          transparent 10deg
+        );
+        pointer-events: none;
+      }
+
+      .filas {
+        list-style: none;
+        margin: 0;
+        padding: 10px 0 10px 84px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .fila {
+        display: grid;
+        grid-template-columns: 10px minmax(0, 0.8fr) minmax(0, 1.4fr) auto;
+        gap: 14px;
+        align-items: baseline;
+        padding: 13px 18px 13px 0;
+        border-bottom: 1px solid var(--junta);
+        transition: background 0.6s;
+      }
+
+      .fila:last-child {
+        border-bottom: 0;
+      }
+
+      .punto {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--polvo);
+        transform: translateY(-1px);
+        transition:
+          background 0.3s,
+          box-shadow 0.6s;
+      }
+
+      .fila[data-estado="ok"].vista .punto {
+        background: var(--liquen);
+      }
+
+      .fila[data-estado="aviso"].vista .punto {
+        background: var(--almenara);
+      }
+
+      .fila[data-estado="falla"].vista .punto {
+        background: var(--brasa);
+      }
+
+      .fila.tocada {
+        background: rgba(217, 154, 62, 0.06);
+      }
+
+      .fila.tocada .punto {
+        box-shadow: 0 0 0 5px rgba(217, 154, 62, 0.18);
+      }
+
+      .fila .nombre {
+        font-weight: 600;
+        font-size: 15px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .fila .estado {
+        font-size: 14px;
+        color: var(--ceniza);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .fila[data-estado="falla"].vista .estado {
+        color: var(--brasa);
+      }
+
+      .fila .hora {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--polvo);
+        white-space: nowrap;
+      }
+
+      .guardia-pie {
+        position: relative;
+        z-index: 1;
+        padding: 12px 18px;
+        border-top: 1px solid var(--junta);
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--polvo);
+        background: var(--muralla);
+      }
+
+      .guardia-pie b {
+        color: var(--almenara);
+        font-weight: 500;
+      }
+
+      /* ---------------------------------------------------------- secciones */
+      section {
+        padding: clamp(64px, 9vw, 112px) 0;
+        border-bottom: 1px solid var(--junta);
+      }
+
+      .titulo {
+        max-width: 760px;
+        margin-bottom: clamp(36px, 5vw, 56px);
+      }
+
+      .titulo h2 {
+        margin: 14px 0 16px;
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: clamp(40px, 5.4vw, 68px);
+        line-height: 0.95;
+        text-transform: uppercase;
+      }
+
+      .titulo p {
+        margin: 0;
+        color: var(--ceniza);
+        font-size: 18px;
+      }
+
+      /* La ronda: un día de guardia, en el orden en que pasa. */
+      .bitacora {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        border-top: 1px solid var(--junta);
+      }
+
+      .bitacora li {
+        display: grid;
+        grid-template-columns: 92px 190px minmax(0, 1fr);
+        gap: 24px;
+        padding: 22px 0;
+        border-bottom: 1px solid var(--junta);
+        align-items: baseline;
+      }
+
+      .bitacora time {
+        font-family: var(--mono);
+        font-size: 14px;
+        color: var(--polvo);
+      }
+
+      .bitacora .quien {
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ceniza);
+      }
+
+      .bitacora .quien.tu {
+        color: var(--almenara);
+      }
+
+      .bitacora p {
+        margin: 0;
+        font-size: 17px;
+      }
+
+      .bitacora p span {
+        color: var(--ceniza);
+      }
+
+      /* Capturas */
+      .pestanas {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0;
+        border: 1px solid var(--junta);
+        border-bottom: 0;
+        border-radius: 8px 8px 0 0;
+        background: var(--muralla);
+      }
+
+      .pestanas button {
+        flex: 1 1 0;
+        min-width: 120px;
+        padding: 14px 16px;
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--polvo);
+        background: transparent;
+        border: 0;
+        border-right: 1px solid var(--junta);
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+      }
+
+      .pestanas button:last-child {
+        border-right: 0;
+      }
+
+      .pestanas button[aria-selected="true"] {
+        color: var(--cal);
+        border-bottom-color: var(--almenara);
+        background: var(--piedra);
+      }
+
+      .pantalla {
+        border: 1px solid var(--junta);
+        border-radius: 0 0 8px 8px;
+        overflow: hidden;
+        background: var(--noche);
+      }
+
+      .pantalla img {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 16 / 10;
+        object-fit: cover;
+        object-position: top left;
+      }
+
+      .leyenda {
+        margin: 16px 0 0;
+        color: var(--ceniza);
+        font-size: 15px;
+      }
+
+      /* Roles */
+      .roles {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        border: 1px solid var(--junta);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .rol {
+        padding: 28px 24px 30px;
+        border-right: 1px solid var(--junta);
+        background: var(--muralla);
+      }
+
+      .rol:last-child {
+        border-right: 0;
+      }
+
+      .rol h3 {
+        margin: 12px 0 10px;
+        font-size: 21px;
+        font-weight: 600;
+      }
+
+      .rol p {
+        margin: 0 0 20px;
+        color: var(--ceniza);
+        font-size: 15px;
+      }
+
+      .fila-ia {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+
+      .fila-ia li {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 10px;
+        border: 1px solid var(--junta);
+        border-radius: 4px;
+      }
+
+      .fila-ia li span {
+        color: var(--polvo);
+      }
+
+      .fila-ia li.gratis span {
+        color: var(--liquen);
+      }
+
+      .fila-ia li.pausa {
+        color: var(--polvo);
+        text-decoration: line-through;
+        text-decoration-color: var(--brasa);
+      }
+
+      .fila-ia li.pausa span {
+        color: var(--brasa);
+        text-decoration: none;
+      }
+
+      .nota {
+        margin-top: 18px;
+        color: var(--polvo);
+        font-size: 15px;
+      }
+
+      /* Reglas */
+      .reglas {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        border-top: 1px solid var(--junta);
+      }
+
+      .reglas li {
+        padding: 26px 28px 26px 0;
+        border-bottom: 1px solid var(--junta);
+      }
+
+      .reglas li:nth-child(odd) {
+        border-right: 1px solid var(--junta);
+      }
+
+      .reglas li:nth-child(even) {
+        padding-left: 28px;
+      }
+
+      .reglas h3 {
+        margin: 0 0 6px;
+        font-size: 19px;
+        font-weight: 600;
+      }
+
+      .reglas p {
+        margin: 0;
+        color: var(--ceniza);
+        font-size: 15px;
+      }
+
+      /* Compatibles */
+      .grupos {
+        display: grid;
+        gap: 28px;
+      }
+
+      .grupo {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr);
+        gap: 24px;
+        align-items: start;
+      }
+
+      .fichas {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .ficha {
+        padding: 6px 12px;
+        font-size: 14px;
+        border: 1px solid var(--junta);
+        border-radius: 999px;
+        color: var(--cal);
+        background: var(--muralla);
+      }
+
+      .ficha.gratis {
+        border-color: rgba(94, 158, 120, 0.5);
+      }
+
+      .ficha.gratis::after {
+        content: " · gratis";
+        color: var(--liquen);
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+
+      /* Empezar */
+      .empezar .marco {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: clamp(32px, 5vw, 72px);
+        align-items: start;
+      }
+
+      .consola {
+        border: 1px solid var(--junta);
+        border-radius: 8px;
+        background: var(--muralla);
+        overflow: hidden;
+      }
+
+      .consola-cabeza {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--junta);
+      }
+
+      .copiar {
+        padding: 6px 10px;
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ceniza);
+        background: transparent;
+        border: 1px solid var(--junta);
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      .copiar:hover {
+        color: var(--cal);
+        border-color: var(--ceniza);
+      }
+
+      .consola pre {
+        margin: 0;
+        padding: 20px 18px;
+        overflow-x: auto;
+        font-family: var(--mono);
+        font-size: 14px;
+        line-height: 1.8;
+        color: var(--cal);
+      }
+
+      .consola pre .c {
+        color: var(--polvo);
+      }
+
+      .consola pre .p {
+        color: var(--almenara);
+        user-select: none;
+      }
+
+      .enlaces {
+        display: grid;
+        gap: 0;
+        margin: 28px 0 0;
+        padding: 0;
+        list-style: none;
+        border-top: 1px solid var(--junta);
+      }
+
+      .enlaces a {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        padding: 18px 0;
+        text-decoration: none;
+        border-bottom: 1px solid var(--junta);
+      }
+
+      .enlaces a:hover strong {
+        color: var(--almenara);
+      }
+
+      .enlaces strong {
+        display: block;
+        font-weight: 600;
+        transition: color 0.2s;
+      }
+
+      .enlaces span {
+        color: var(--ceniza);
+        font-size: 15px;
+      }
+
+      .enlaces i {
+        font-style: normal;
+        font-family: var(--mono);
+        color: var(--polvo);
+        align-self: center;
+      }
+
+      footer {
+        padding: 36px 0 48px;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--polvo);
+      }
+
+      footer .marco {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      footer a {
+        color: var(--ceniza);
+      }
+
+      /* ---------------------------------------------------------- tamaños */
+      @media (max-width: 980px) {
+        .portada .marco,
+        .empezar .marco {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .roles {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .rol:nth-child(2) {
+          border-right: 0;
+        }
+
+        .rol:nth-child(-n + 2) {
+          border-bottom: 1px solid var(--junta);
+        }
+      }
+
+      @media (max-width: 720px) {
+        body {
+          font-size: 16px;
+        }
+
+        .barra nav {
+          display: none;
+        }
+
+        .barra .boton {
+          margin-left: auto;
+        }
+
+        .fila {
+          grid-template-columns: 10px minmax(0, 1fr) auto;
+        }
+
+        .fila .estado {
+          grid-column: 2 / 4;
+          grid-row: 2;
+          white-space: normal;
+        }
+
+        .filas {
+          padding-left: 70px;
+        }
+
+        .bitacora li {
+          grid-template-columns: 64px minmax(0, 1fr);
+          gap: 6px 16px;
+        }
+
+        .bitacora p {
+          grid-column: 2;
+        }
+
+        .roles,
+        .reglas {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .rol {
+          border-right: 0;
+          border-bottom: 1px solid var(--junta);
+        }
+
+        .rol:last-child {
+          border-bottom: 0;
+        }
+
+        .reglas li,
+        .reglas li:nth-child(even) {
+          padding: 22px 0;
+          border-right: 0;
+        }
+
+        .grupo {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 12px;
+        }
+
+        .pestanas button {
+          min-width: 50%;
+          border-bottom: 1px solid var(--junta);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+
+        .fila,
+        .punto {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="barra">
+      <div class="marco">
+        <a class="marca" href="#">
+          <img src="/img/logo.png" alt="" width="26" height="26" />
+          Atalaya
+        </a>
+        <nav aria-label="Secciones">
+          <a href="#ronda">La ronda</a>
+          <a href="#equipo">Equipo de IA</a>
+          <a href="#reglas">Reglas</a>
+          <a href="#empezar">Empezar</a>
+        </nav>
+        <a class="boton" href="https://github.com/Thrazos360/Atalaya">
+          <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
+            <path
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+            />
+          </svg>
+          GitHub
+        </a>
+      </div>
+    </header>
+
+    <main>
+      <div class="portada">
+        <div class="marco">
+          <div>
+            <div class="rotulo">Código abierto · macOS · versión 0.42</div>
+            <h1>La torre de vigía de tus <em>proyectos</em></h1>
+            <p class="bajada">
+              Atalaya revisa tus sitios, despliegues, bases y repos desde tu Mac. Cuando algo falla te avisa, propone qué hacer y
+              pone a <strong>varias IA a trabajar en equipo</strong> para resolverlo. Nada se ejecuta sin tu visto bueno.
+            </p>
+            <div class="acciones">
+              <a class="boton principal" href="https://github.com/Thrazos360/Atalaya">Ver el código en GitHub</a>
+              <a class="boton" href="#empezar">Cómo empezar</a>
+            </div>
+          </div>
+
+          <div class="guardia" aria-label="Ejemplo: Atalaya revisa cinco proyectos">
+            <div class="guardia-cabeza">
+              <span class="rotulo">Vigía · 5 proyectos</span>
+              <span class="rotulo vivo">En guardia</span>
+            </div>
+            <div class="haz" aria-hidden="true"></div>
+            <svg class="torre" viewBox="0 0 46 70" aria-hidden="true">
+              <path d="M11 9 a12 9 0 0 1 24 0 z" fill="#e4e4e7" />
+              <circle cx="23" cy="16" r="4.5" fill="#d99a3e" />
+              <rect x="10" y="24" width="26" height="5" rx="1.5" fill="#e4e4e7" />
+              <path d="M13 29 h20 l5 34 h-30 z" fill="#e4e4e7" />
+              <rect x="5" y="62" width="36" height="5" rx="1.5" fill="#e4e4e7" />
+            </svg>
+            <ul class="filas">
+              <li class="fila" data-estado="ok">
+                <i class="punto"></i><span class="nombre">Faro</span><span class="estado">Sitio: 200 en 182 ms</span
+                ><span class="hora">—</span>
+              </li>
+              <li class="fila" data-estado="falla">
+                <i class="punto"></i><span class="nombre">Brújula</span><span class="estado">El build falló: falta SUPABASE_URL</span
+                ><span class="hora">—</span>
+              </li>
+              <li class="fila" data-estado="ok">
+                <i class="punto"></i><span class="nombre">Ancla API</span><span class="estado">Postgres 16 · 41 ms</span
+                ><span class="hora">—</span>
+              </li>
+              <li class="fila" data-estado="aviso">
+                <i class="punto"></i><span class="nombre">Bitácora</span><span class="estado">El certificado vence en 9 días</span
+                ><span class="hora">—</span>
+              </li>
+              <li class="fila" data-estado="aviso">
+                <i class="punto"></i><span class="nombre">Mareas</span><span class="estado">3 dependencias con avisos de seguridad</span
+                ><span class="hora">—</span>
+              </li>
+            </ul>
+            <div class="guardia-pie">Próxima ronda de la IA: <b>mañana 07:00</b> · 3 decisiones esperan tu visto bueno</div>
+          </div>
+        </div>
+      </div>
+
+      <section id="ronda">
+        <div class="marco">
+          <div class="titulo">
+            <div class="rotulo">La ronda</div>
+            <h2>Un día de guardia</h2>
+            <p>
+              Atalaya trabaja como una guardia con turnos: revisa sin parar, piensa una vez al día y espera tu palabra antes de
+              tocar algo. Así se ve un día cualquiera.
+            </p>
+          </div>
+          <ol class="bitacora">
+            <li>
+              <time>06:40</time><span class="quien">Vigía</span>
+              <p>El sitio de Brújula responde 503 tres veces seguidas. <span>Te llega una notificación y un mensaje a Telegram.</span></p>
+            </li>
+            <li>
+              <time>07:00</time><span class="quien">Validador · Groq</span>
+              <p>
+                La ronda diaria lee todas las revisiones y deja tres decisiones.
+                <span>Una dice: «falta SUPABASE_URL en Production; agregarla y volver a desplegar».</span>
+              </p>
+            </li>
+            <li>
+              <time>08:15</time><span class="quien tu">Tú</span>
+              <p>Apruebas la decisión desde el teléfono. <span>Se convierte en una mejora.</span></p>
+            </li>
+            <li>
+              <time>08:16</time><span class="quien">Constructor · Codex</span>
+              <p>
+                Trabaja en una copia aparte y en su propia rama, encerrado: no ve tus llaves ni puede subir nada.
+                <span>Termina con dos commits.</span>
+              </p>
+            </li>
+            <li>
+              <time>08:31</time><span class="quien">Revisor · Gemini</span>
+              <p>Otro modelo lee el cambio y lo aprueba. <span>Atalaya revisa que no haya secretos y abre el pull request.</span></p>
+            </li>
+            <li>
+              <time>09:02</time><span class="quien tu">Tú</span>
+              <p>Lees el resumen y fusionas. <span>Atalaya pone al día tu carpeta sin pisar lo que tenías sin confirmar.</span></p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section id="vistas">
+        <div class="marco">
+          <div class="titulo">
+            <div class="rotulo">La app</div>
+            <h2>Todo a la vista</h2>
+            <p>Una consola de escritorio, oscura y sobria, pensada para echarle un ojo entre tarea y tarea.</p>
+          </div>
+          <div class="pestanas" role="tablist" aria-label="Vistas de la app">
+            <button role="tab" aria-selected="true" aria-controls="pantalla" data-img="vigia" data-texto="Vigía: las alertas abiertas, la última ronda y el estado de cada proyecto.">Vigía</button>
+            <button role="tab" aria-selected="false" aria-controls="pantalla" data-img="decisiones" data-texto="Decisiones: lo que se observó, lo que la IA propone y tu visto bueno. Puedes editar la propuesta antes de aprobar.">Decisiones</button>
+            <button role="tab" aria-selected="false" aria-controls="pantalla" data-img="mejoras" data-texto="Mejoras: de la propuesta al pull request, con el informe del agente y la revisión de otro modelo.">Mejoras</button>
+            <button role="tab" aria-selected="false" aria-controls="pantalla" data-img="consumo" data-texto="Consumo: cuánto trabajó cada IA, cuánto fue gratis y cuál está en pausa por falta de cuota.">Consumo</button>
+          </div>
+          <div class="pantalla" id="pantalla" role="tabpanel">
+            <img src="/img/vigia.jpg" width="2000" height="1250" alt="Captura de la vista Vigía de Atalaya" />
+          </div>
+          <p class="leyenda" aria-live="polite">Vigía: las alertas abiertas, la última ronda y el estado de cada proyecto.</p>
+        </div>
+      </section>
+
+      <section id="equipo">
+        <div class="marco">
+          <div class="titulo">
+            <div class="rotulo">Equipo de IA</div>
+            <h2>Muchas IA, un solo equipo</h2>
+            <p>
+              Cada rol tiene su lista de IA y su estrategia. Si una falla, pasa su presupuesto o se queda sin cuota, el trabajo
+              pasa a la siguiente. Lo gratis va primero.
+            </p>
+          </div>
+          <div class="roles">
+            <article class="rol">
+              <div class="rotulo">Constructor</div>
+              <h3>Hace las mejoras</h3>
+              <p>Un agente de terminal que cambia código en su propia rama.</p>
+              <ul class="fila-ia">
+                <li class="gratis">Codex <span>gratis</span></li>
+                <li class="gratis">Qwen Code + Groq <span>gratis</span></li>
+                <li class="pausa">Cursor <span>sin cuota</span></li>
+                <li>Claude Code <span>tu cuenta</span></li>
+              </ul>
+            </article>
+            <article class="rol">
+              <div class="rotulo">Revisor</div>
+              <h3>Mira el cambio</h3>
+              <p>Siempre un modelo distinto del que construyó.</p>
+              <ul class="fila-ia">
+                <li class="gratis">Groq <span>gratis</span></li>
+                <li class="gratis">Gemini Flash <span>gratis</span></li>
+                <li>DeepSeek <span>por uso</span></li>
+              </ul>
+            </article>
+            <article class="rol">
+              <div class="rotulo">Validador</div>
+              <h3>Hace la ronda</h3>
+              <p>Lee las revisiones del día y propone decisiones.</p>
+              <ul class="fila-ia">
+                <li class="gratis">Groq <span>gratis</span></li>
+                <li class="gratis">Mistral <span>gratis</span></li>
+                <li>Claude Code <span>tu cuenta</span></li>
+              </ul>
+            </article>
+            <article class="rol">
+              <div class="rotulo">Asistente</div>
+              <h3>Conversa contigo</h3>
+              <p>El chat que conoce tus proyectos y pide permiso antes de cada cambio.</p>
+              <ul class="fila-ia">
+                <li>Claude Code <span>tu cuenta</span></li>
+                <li class="gratis">Ollama local <span>gratis</span></li>
+              </ul>
+            </article>
+          </div>
+          <p class="nota">Atalaya anota cada llamada: quién la hizo, para qué, cuántos tokens y cuánto costó. No inventa precios.</p>
+        </div>
+      </section>
+
+      <section id="reglas">
+        <div class="marco">
+          <div class="titulo">
+            <div class="rotulo">Reglas de la guardia</div>
+            <h2>Tú tienes la última palabra</h2>
+            <p>Una IA con acceso a tus proyectos tiene que ganarse la confianza. Estas reglas están en el código, no en la promesa.</p>
+          </div>
+          <ul class="reglas">
+            <li>
+              <h3>Nada se ejecuta sin tu visto bueno</h3>
+              <p>La IA propone decisiones; tú las apruebas, editas o descartas. Los cambios llegan como pull request y fusionar es tuyo.</p>
+            </li>
+            <li>
+              <h3>Los agentes trabajan encerrados</h3>
+              <p>Cada uno en su copia, dentro de sandbox-exec: no ven ~/.ssh, ~/.aws ni las credenciales de git, y no pueden hacer push.</p>
+            </li>
+            <li>
+              <h3>Tus llaves no salen del Llavero</h3>
+              <p>Viven en el Llavero de macOS. La interfaz nunca las recibe de vuelta y Atalaya nunca lee las credenciales de los agentes.</p>
+            </li>
+            <li>
+              <h3>Corre en tu Mac, sin intermediarios</h3>
+              <p>No hay servidor de Atalaya ni telemetría. Solo habla con los servicios que tú conectas.</p>
+            </li>
+            <li>
+              <h3>Otro par de ojos en cada cambio</h3>
+              <p>El revisor nunca es el mismo modelo que construyó, y antes de subir cada rama se buscan secretos en el código.</p>
+            </li>
+            <li>
+              <h3>Lo que pasa, queda anotado</h3>
+              <p>Cada revisión, decisión, mejora y llamada a una IA queda en el historial, para revisar qué se hizo y por qué.</p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="compatibles">
+        <div class="marco">
+          <div class="titulo">
+            <div class="rotulo">Compatibles</div>
+            <h2>Conecta lo que ya usas</h2>
+            <p>Varias conexiones del mismo tipo, y cada proyecto elige las suyas.</p>
+          </div>
+          <div class="grupos">
+            <div class="grupo">
+              <div class="rotulo">Agentes de terminal</div>
+              <div class="fichas">
+                <span class="ficha">Claude Code</span><span class="ficha gratis">Codex</span><span class="ficha gratis">Antigravity CLI</span
+                ><span class="ficha gratis">Gemini CLI</span><span class="ficha gratis">Cursor</span><span class="ficha">GitHub Copilot</span
+                ><span class="ficha gratis">Qwen Code</span><span class="ficha">Kimi Code</span><span class="ficha">OpenCode</span
+                ><span class="ficha">Factory Droid</span><span class="ficha">Amp</span><span class="ficha">El tuyo, con plantilla</span>
+              </div>
+            </div>
+            <div class="grupo">
+              <div class="rotulo">Modelos por API</div>
+              <div class="fichas">
+                <span class="ficha gratis">Groq</span><span class="ficha gratis">OpenRouter</span><span class="ficha gratis">Google Gemini</span
+                ><span class="ficha gratis">Mistral</span><span class="ficha gratis">SambaNova</span><span class="ficha gratis">Cloudflare Workers AI</span
+                ><span class="ficha gratis">NVIDIA</span><span class="ficha gratis">Z.ai</span><span class="ficha">Anthropic</span
+                ><span class="ficha">OpenAI</span><span class="ficha">DeepSeek</span><span class="ficha">xAI</span><span class="ficha">Kimi</span
+                ><span class="ficha">Qwen</span><span class="ficha">MiniMax</span><span class="ficha">Together</span><span class="ficha">Fireworks</span
+                ><span class="ficha">Cerebras</span><span class="ficha">Perplexity</span><span class="ficha">Hugging Face</span
+                ><span class="ficha">Cohere</span>
+              </div>
+            </div>
+            <div class="grupo">
+              <div class="rotulo">En tu Mac</div>
+              <div class="fichas">
+                <span class="ficha gratis">Ollama</span><span class="ficha gratis">LM Studio</span><span class="ficha gratis">Jan</span
+                ><span class="ficha gratis">llama.cpp</span>
+              </div>
+            </div>
+            <div class="grupo">
+              <div class="rotulo">Lo que vigila</div>
+              <div class="fichas">
+                <span class="ficha">GitHub</span><span class="ficha">GitLab</span><span class="ficha">Gitea / Forgejo</span><span class="ficha">Vercel</span
+                ><span class="ficha">Netlify</span><span class="ficha">Servidor propio</span><span class="ficha">Supabase</span
+                ><span class="ficha">Firebase</span><span class="ficha">PostgreSQL</span><span class="ficha">MySQL / MariaDB</span
+                ><span class="ficha">SQLite</span><span class="ficha">Correo</span><span class="ficha">Telegram</span>
+              </div>
+            </div>
+          </div>
+          <p class="nota">«Gratis» quiere decir que tiene un uso gratis que se renueva, con sus límites. Cambian seguido: Atalaya los revisa en cada versión.</p>
+        </div>
+      </section>
+
+      <section id="empezar" class="empezar">
+        <div class="marco">
+          <div>
+            <div class="titulo">
+              <div class="rotulo">Empezar</div>
+              <h2>Súbete a la torre</h2>
+              <p>
+                Atalaya se compila en tu Mac con Rust y Node. La primera vez, macOS pide abrirla desde Privacidad y seguridad porque
+                no viene firmada por Apple.
+              </p>
+            </div>
+            <ul class="enlaces">
+              <li>
+                <a href="https://github.com/Thrazos360/Atalaya/blob/main/INSTALAR.md"
+                  ><div><strong>Guía de instalación</strong><span>Requisitos, primer uso y qué conectar primero.</span></div>
+                  <i>→</i></a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/Thrazos360/Atalaya/blob/main/CONTRIBUTING.md"
+                  ><div><strong>Colaborar</strong><span>Cómo preparar el entorno y abrir un pull request.</span></div>
+                  <i>→</i></a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/Thrazos360/Atalaya/blob/main/docs/ARQUITECTURA.md"
+                  ><div><strong>Arquitectura</strong><span>Cómo está armado y cómo agregar un proveedor o una IA.</span></div>
+                  <i>→</i></a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/Thrazos360/Atalaya/issues"
+                  ><div><strong>Ideas y errores</strong><span>Cuéntanos qué te funcionó y qué echas de menos.</span></div>
+                  <i>→</i></a
+                >
+              </li>
+            </ul>
+          </div>
+          <div class="consola">
+            <div class="consola-cabeza">
+              <span class="rotulo">Terminal</span>
+              <button class="copiar" type="button" data-copiar>Copiar</button>
+            </div>
+            <pre><code><span class="c"># 1. Descarga el código</span>
+<span class="p">$ </span>git clone https://github.com/Thrazos360/Atalaya.git
+<span class="p">$ </span>cd Atalaya
+
+<span class="c"># 2. Crea tu firma local (una sola vez)</span>
+<span class="p">$ </span>scripts/crear-firma.sh
+
+<span class="c"># 3. Arma el instalador</span>
+<span class="p">$ </span>scripts/build-pkg.sh
+<span class="c">  → dist/Atalaya-0.42.0.pkg</span></code></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="marco">
+        <span>Atalaya 0.42 · licencia MIT · hecho con Rust, Tauri y muchas IA trabajando en equipo</span>
+        <a href="https://github.com/Thrazos360/Atalaya">github.com/Thrazos360/Atalaya</a>
+      </div>
+    </footer>
+
+    <script>
+      // El faro barre la lista: cada proyecto que toca queda revisado «hace 0 s».
+      (() => {
+        const sala = document.querySelector(".guardia");
+        const haz = sala.querySelector(".haz");
+        const filas = [...sala.querySelectorAll(".fila")];
+        const vistas = filas.map(() => null);
+        const quieto = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const hora = (i) => {
+          const t = vistas[i];
+          const s = t === null ? null : Math.floor((performance.now() - t) / 1000);
+          filas[i].querySelector(".hora").textContent = s === null ? "—" : `hace ${s} s`;
+        };
+
+        if (quieto) {
+          haz.style.transform = "rotate(8deg)";
+          filas.forEach((f, i) => {
+            f.classList.add("vista");
+            vistas[i] = performance.now();
+          });
+          setInterval(() => filas.forEach((_, i) => hora(i)), 1000);
+          return;
+        }
+
+        const angulos = () => {
+          const caja = haz.getBoundingClientRect();
+          const ox = caja.left;
+          const oy = caja.top + caja.height / 2;
+          return filas.map((f) => {
+            const r = f.getBoundingClientRect();
+            return (Math.atan2(r.top + r.height / 2 - oy, r.left + 40 - ox) * 180) / Math.PI;
+          });
+        };
+        let objetivos = angulos();
+        window.addEventListener("resize", () => (objetivos = angulos()));
+
+        const inicio = performance.now();
+        const paso = (ahora) => {
+          // Un barrido de arriba abajo y de vuelta cada 7 s.
+          const fase = ((ahora - inicio) / 7000) % 1;
+          const ida = fase < 0.5 ? fase * 2 : 2 - fase * 2;
+          const suave = 0.5 - Math.cos(ida * Math.PI) / 2;
+          const min = Math.min(...objetivos) - 10;
+          const max = Math.max(...objetivos) + 10;
+          const angulo = min + (max - min) * suave;
+          haz.style.transform = `rotate(${angulo - 5}deg)`;
+          filas.forEach((f, i) => {
+            const cerca = Math.abs(angulo - objetivos[i]) < 4;
+            if (cerca) {
+              vistas[i] = ahora;
+              f.classList.add("vista");
+            }
+            f.classList.toggle("tocada", cerca);
+          });
+          requestAnimationFrame(paso);
+        };
+        requestAnimationFrame(paso);
+        setInterval(() => filas.forEach((_, i) => hora(i)), 250);
+      })();
+
+      // Pestañas de capturas.
+      (() => {
+        const botones = [...document.querySelectorAll(".pestanas button")];
+        const img = document.querySelector(".pantalla img");
+        const leyenda = document.querySelector(".leyenda");
+        botones.forEach((b) =>
+          b.addEventListener("click", () => {
+            botones.forEach((o) => o.setAttribute("aria-selected", String(o === b)));
+            img.src = `/img/${b.dataset.img}.jpg`;
+            img.alt = `Captura de la vista ${b.textContent} de Atalaya`;
+            leyenda.textContent = b.dataset.texto;
+          }),
+        );
+        // Precarga las demás para que el cambio sea inmediato.
+        botones.slice(1).forEach((b) => (new Image().src = `/img/${b.dataset.img}.jpg`));
+      })();
+
+      // Copiar los comandos, sin los «$».
+      document.querySelector("[data-copiar]").addEventListener("click", async (e) => {
+        const texto = document.querySelector(".consola code").innerText;
+        const comandos = texto
+          .split("\n")
+          .filter((l) => l.startsWith("$ "))
+          .map((l) => l.slice(2))
+          .join("\n");
+        try {
+          await navigator.clipboard.writeText(comandos);
+          e.target.textContent = "Copiado";
+        } catch {
+          e.target.textContent = "Cópialo a mano";
+        }
+        setTimeout(() => (e.target.textContent = "Copiar"), 2000);
+      });
+    </script>
+  </body>
+</html>
