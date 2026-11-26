@@ -177,3 +177,21 @@ de `testutil.rs` y de las pruebas de `ai.rs`.
 - La versión está en el `Cargo.toml` de la raíz.
 - `scripts/version.sh <nueva>` la cambia, crea el commit y la etiqueta.
 - Los cambios de cada versión están en [CHANGELOG.md](../CHANGELOG.md).
+
+## Publicar en el repo público
+
+Quien mantiene el proyecto trabaja en un repo aparte y publica con
+`scripts/publicar.sh`:
+
+1. Copia lo confirmado, sin el historial, a un clon del repo público.
+2. Antes de confirmar, revisa:
+   - términos de una lista local (`.publicar-prohibido`, que nunca va a git), también
+     dentro de las imágenes;
+   - llaves, tokens y archivos sensibles;
+   - `atalaya secretos`.
+3. Se detiene si en GitHub hay pull requests fusionados que aún no trajiste, para no
+   borrarlos.
+4. Los commits públicos llevan hora UTC.
+
+`scripts/publicar.sh --revisar` muestra qué cambiaría sin tocar nada, y `--help` lista
+las opciones.
